@@ -1,75 +1,145 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
-
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+import { Ionicons } from '@expo/vector-icons';
+import React, { useState } from 'react';
+import { FlatList, StyleSheet, Text, TextInput, View } from 'react-native';
+import { CustomAlert } from '../../components/CustomAlert';
+import { TaskItem } from '../../components/TaskItem';
+import { ThemedLayout } from '../../components/ThemedLayout';
+import { COLORS, SHADOWS, SIZES, SPACING } from '../../constants/Theme';
+import { useTasks } from '../../context/TaskContext';
 
 export default function HomeScreen() {
+  const { tasks, toggleTask, deleteTask } = useTasks();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [alertConfig, setAlertConfig] = useState({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'info',
+    onClose: () => {},
+    onConfirm: undefined as undefined | (() => void),
+    confirmText: 'OK',
+    cancelText: 'Cancel'
+  });
+
+  const handleDelete = (id: string) => {
+    setAlertConfig({
+      visible: true,
+      title: 'Delete Task',
+      message: 'Are you sure you want to delete this task?',
+      type: 'warning',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      onClose: () => setAlertConfig(prev => ({ ...prev, visible: false })),
+      onConfirm: () => {
+        deleteTask(id);
+        setAlertConfig(prev => ({ ...prev, visible: false }));
+      }
+    });
+  };
+
+  const filteredTasks = tasks.filter(task => 
+    task.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const incompleteTasks = filteredTasks.filter(t => !t.completed);
+  const completedTasks = filteredTasks.filter(t => t.completed);
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
+    <ThemedLayout>
+      <CustomAlert 
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type as any}
+        onClose={alertConfig.onClose}
+        onConfirm={alertConfig.onConfirm}
+        confirmText={alertConfig.confirmText}
+        cancelText={alertConfig.cancelText}
+      />
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>My Tasks</Text>
+        <Text style={styles.headerSubtitle}>{incompleteTasks.length} pending</Text>
+      </View>
+
+      <View style={styles.searchContainer}>
+        <Ionicons name="search" size={20} color={COLORS.textSecondary} style={styles.searchIcon} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search tasks..."
+          placeholderTextColor={COLORS.textSecondary}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
         />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      </View>
+
+      <FlatList
+        data={[...incompleteTasks, ...completedTasks]}
+        keyExtractor={item => item.id}
+        contentContainerStyle={styles.listContent}
+        renderItem={({ item }) => (
+          <TaskItem
+            task={item}
+            onToggle={toggleTask}
+            onDelete={handleDelete}
+          />
+        )}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Ionicons name="clipboard-outline" size={64} color={COLORS.card} />
+            <Text style={styles.emptyText}>No tasks found</Text>
+          </View>
+        }
+      />
+    </ThemedLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  header: {
+    padding: SPACING.lg,
+    paddingBottom: SPACING.md,
+  },
+  headerTitle: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: COLORS.text,
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    color: COLORS.textSecondary,
+    marginTop: 4,
+  },
+  searchContainer: {
+    marginHorizontal: SPACING.lg,
+    marginBottom: SPACING.md,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    backgroundColor: COLORS.card,
+    borderRadius: SIZES.borderRadius,
+    paddingHorizontal: SPACING.md,
+    height: 48,
+    ...SHADOWS.card,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  searchIcon: {
+    marginRight: SPACING.sm,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  searchInput: {
+    flex: 1,
+    color: COLORS.text,
+    fontSize: 16,
+    height: '100%',
+  },
+  listContent: {
+    padding: SPACING.lg,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 64,
+  },
+  emptyText: {
+    color: COLORS.textSecondary,
+    fontSize: 18,
+    marginTop: SPACING.md,
   },
 });
